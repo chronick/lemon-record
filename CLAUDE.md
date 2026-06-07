@@ -56,9 +56,24 @@ audio is unacceptable, dropping a meter frame is invisible).
 
 ## Releases
 
-Production pipeline (CI artifacts, semver, **auto-update**, signing) is tracked
-in beads (vault repo) — every future feature/fix ships through it. Don't hand-cut
-releases; follow RELEASING.md once it exists.
+Tag-driven pipeline — every future feature/fix ships through it; don't hand-cut
+releases. Follow **[RELEASING.md](RELEASING.md)**.
+
+- Version is single-sourced in workspace `Cargo.toml` `[workspace.package] version`;
+  both crates inherit via `version.workspace = true`. Bump it there only.
+- Packaging via `cargo-packager` (`[package.metadata.packager]` in the bin crate);
+  `.app` Info.plist gets `NSMicrophoneUsageDescription` from `macos/Info.plist`
+  (a bundled app needs its own mic purpose string — a `cargo run` binary inherits
+  the terminal's TCC grant, a double-clicked `.app` does not).
+- Auto-update via `cargo-packager-updater` ([`crates/lemon-record/src/updater.rs`](crates/lemon-record/src/updater.rs)):
+  minisign-verified, swaps the running `.app`, no auto-relaunch on macOS (we
+  `open -n` + exit). Public key embedded at `crates/lemon-record/updater.pub`;
+  the private key is a GitHub Secret, never committed.
+- CI: [`.github/workflows/release.yml`](.github/workflows/release.yml) +
+  [`scripts/make-manifest.sh`](scripts/make-manifest.sh) (normalizes artifact
+  names + writes `latest.json`). Icon: [`scripts/gen-icon.py`](scripts/gen-icon.py).
+- Signing: ad-hoc for now (Apple Developer ID deferred; CI is pre-wired for the
+  `APPLE_*` secrets). See RELEASING.md "Signing / notarization decision".
 
 ## Task tracking
 

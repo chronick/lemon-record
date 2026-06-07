@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Partial Info.plist merged ON TOP of the one cargo-packager generates
+  (see crates/packager/src/package/app create_info_plist: user keys override).
+  Only list keys cargo-packager does NOT already set. It already sets
+  CFBundleIdentifier/Name/DisplayName/Executable/ShortVersionString/Version,
+  CFBundlePackageType, LSMinimumSystemVersion, NSHighResolutionCapable.
+
+  NSMicrophoneUsageDescription is the whole reason a bundled build exists:
+  a cargo-launched binary inherits the terminal's TCC grant, but a
+  double-clicked .app must declare its own microphone purpose string or
+  macOS denies capture outright.
+-->
+<plist version="1.0">
+<dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>LEMON record captures audio from your input devices to record multi-track takes.</string>
+</dict>
+</plist>

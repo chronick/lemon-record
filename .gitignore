@@ -7,3 +7,12 @@
 *.wav
 session-*/
 recordings/
+
+# release staging + regenerable icon intermediates
+/dist/
+icons/icon.iconset/
+
+# never commit the updater PRIVATE key (the .pub is committed for embedding)
+updater.key
+updater.key.password
+*.key

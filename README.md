@@ -58,11 +58,26 @@ lemon-record/
 └── Cargo.toml           # workspace
 ```
 
+## Install
+
+Download the latest `.dmg` from [Releases](https://github.com/chronick/lemon-record/releases),
+open it, and drag **LEMON record** to Applications.
+
+Builds are currently ad-hoc signed (not yet Apple-notarized), so on first launch
+clear the Gatekeeper quarantine flag once:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/LEMON record.app"
+# or: right-click the app → Open → Open
+```
+
+The app self-updates from there: **Settings → SOFTWARE UPDATE → Check for updates**.
+
 ## Releases
 
-Production build pipeline (CI artifacts, semantic versioning, auto-update,
-signing) is tracked separately — every change ships through it. See the
-release tracking task before cutting a build.
+Tag-driven: push `vX.Y.Z` and CI builds the `.app` + `.dmg`, signs the updater
+artifact, and drafts a GitHub Release with an auto-update manifest. Full ritual,
+versioning, and the signing decision: **[RELEASING.md](RELEASING.md)**.
 
 ## Lineage
 

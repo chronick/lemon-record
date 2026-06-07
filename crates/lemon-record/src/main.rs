@@ -12,6 +12,9 @@ use egui::{FontFamily, FontId, Pos2, Rect, RichText, Rounding, Stroke, Vec2};
 use recorder::config::{ArmMode, RecorderConfig, RecorderConfigState, TrackConfig};
 use recorder::{list_input_devices, AudioDevice, Capture};
 
+mod updater;
+use updater::{UpdateState, Updater};
+
 mod theme {
     use eframe::egui::Color32;
     pub const BG: Color32 = Color32::from_rgb(0x17, 0x18, 0x1a);
@@ -121,6 +124,8 @@ struct RecorderApp {
     name: String,
     /// Last window title pushed to the OS, to avoid re-sending every frame.
     title: String,
+    /// In-app auto-update (background worker + shared state).
+    updater: Updater,
 }
 
 impl RecorderApp {
@@ -151,6 +156,7 @@ impl RecorderApp {
             view: View::Recorder,
             name,
             title: String::new(),
+            updater: Updater::new(),
         };
         if let Some(dev) = app.selected_device.clone() {
             app.open_device(&dev);
@@ -632,6 +638,8 @@ impl RecorderApp {
                         .size(10.0),
                 );
             });
+
+            section(ui, "SOFTWARE UPDATE", |ui| self.update_panel(ui));
         });
 
         if dirty {
@@ -641,6 +649,69 @@ impl RecorderApp {
             if let Some(dev) = self.selected_device.clone() {
                 self.open_device(&dev);
             }
+        }
+    }
+
+    /// Auto-update controls. A `cargo run` build can't self-update (nothing to
+    /// swap), so we show the version and explain rather than offer a no-op.
+    fn update_panel(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("version").color(theme::DIM));
+            ui.label(RichText::new(format!("v{}", Updater::current_version())).color(theme::TEXT));
+        });
+
+        if !self.updater.is_bundled() {
+            ui.add_space(4.0);
+            ui.label(
+                RichText::new("running unbundled (cargo) — auto-update is only active in the packaged app")
+                    .color(theme::DIM)
+                    .size(10.0),
+            );
+            return;
+        }
+
+        ui.add_space(6.0);
+        match self.updater.state() {
+            UpdateState::Idle | UpdateState::UpToDate | UpdateState::Error(_) => {
+                if ui.button(RichText::new("Check for updates").color(theme::TEXT)).clicked() {
+                    self.updater.check();
+                }
+            }
+            UpdateState::Checking => {
+                ui.label(RichText::new("checking…").color(theme::DIM).size(11.0));
+            }
+            UpdateState::Available(ref v) => {
+                if ui
+                    .button(RichText::new(format!("Download & install v{v}")).color(theme::LEMON).strong())
+                    .clicked()
+                {
+                    self.updater.install();
+                }
+            }
+            UpdateState::Downloading => {
+                ui.label(RichText::new("downloading & installing…").color(theme::AMBER).size(11.0));
+            }
+            UpdateState::Ready(ref v) => {
+                if ui
+                    .button(RichText::new(format!("Relaunch into v{v}")).color(theme::GREEN).strong())
+                    .clicked()
+                {
+                    self.updater.relaunch_and_exit();
+                }
+            }
+        }
+
+        // A line of feedback for the terminal states.
+        ui.add_space(4.0);
+        let (msg, color) = match self.updater.state() {
+            UpdateState::UpToDate => ("up to date".to_string(), theme::DIM),
+            UpdateState::Available(v) => (format!("v{v} available"), theme::LEMON),
+            UpdateState::Ready(_) => ("installed — relaunch to finish".to_string(), theme::GREEN),
+            UpdateState::Error(e) => (format!("update error: {e}"), theme::RED),
+            _ => (String::new(), theme::DIM),
+        };
+        if !msg.is_empty() {
+            ui.label(RichText::new(msg).color(color).size(10.0));
         }
     }
 

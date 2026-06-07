@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Hardened-runtime entitlements applied when code-signing with a Developer ID
+  (notarization path). com.apple.security.device.audio-input is required for
+  microphone capture under the hardened runtime. Harmless for an unsigned /
+  ad-hoc build (no hardened runtime → entitlement is simply not enforced).
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+</dict>
+</plist>

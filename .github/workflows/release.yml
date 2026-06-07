@@ -1,0 +1,61 @@
+name: release
+
+# Tag-driven release. Push a tag like v0.1.0 (see RELEASING.md) and this builds
+# the macOS .app + .dmg, signs the updater artifact, generates latest.json, and
+# attaches everything to a DRAFT GitHub Release for you to review + publish.
+#
+# Required secrets (auto-update will not work without these):
+#   CARGO_PACKAGER_SIGN_PRIVATE_KEY          minisign private key (file contents)
+#   CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD its password
+# Optional secrets (Apple Developer ID signing + notarization). When absent the
+# build is ad-hoc signed and users need the one-time Gatekeeper workaround:
+#   APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD   base64 .p12 + its password
+#   APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID        Apple ID + app-specific pw + team
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package-macos:
+    runs-on: macos-latest # Apple Silicon (arm64); produces a macos-aarch64 build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --locked --version 0.11.8
+
+      - name: Build release binary
+        run: cargo build --release -p lemon-record
+
+      - name: Package (.app + .dmg) and sign updater artifact
+        env:
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY }}
+          CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD: ${{ secrets.CARGO_PACKAGER_SIGN_PRIVATE_KEY_PASSWORD }}
+          # Apple Developer ID signing + notarization (optional — empty = ad-hoc).
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: cargo packager --release --verbose
+
+      - name: Generate manifest + checksums (dist/)
+        run: bash scripts/make-manifest.sh "${GITHUB_REF_NAME}" target/release dist
+
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --draft \
+            --title "LEMON record ${GITHUB_REF_NAME}" \
+            --notes "Draft release for ${GITHUB_REF_NAME}. Review and publish to make the auto-updater see it (the updater reads the latest *published* release)." \
+            dist/*
