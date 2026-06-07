@@ -1,0 +1,20 @@
+[package]
+name = "recorder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Multi-track audio capture core for LEMON record — standalone, file-backed config, master-gated auto-take recording"
+
+[dependencies]
+cpal.workspace = true
+hound.workspace = true
+crossbeam.workspace = true
+rustfft.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+dirs.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
