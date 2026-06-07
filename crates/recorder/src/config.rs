@@ -164,6 +164,17 @@ impl RecorderConfig {
             self.tracks.clone()
         }
     }
+
+    /// The output directory to actually write into. A blank `output_dir` falls
+    /// back to the default — never the empty/relative path, which would dump
+    /// recordings into the current working directory.
+    pub fn resolved_output_dir(&self) -> String {
+        if self.output_dir.trim().is_empty() {
+            default_output_dir()
+        } else {
+            self.output_dir.clone()
+        }
+    }
 }
 
 /// Thread-safe, file-backed config handle. Reads on construction, writes back
@@ -179,7 +190,7 @@ impl RecorderConfigState {
     }
 
     pub fn with_path(config_path: PathBuf) -> Self {
-        let config = if config_path.exists() {
+        let mut config: RecorderConfig = if config_path.exists() {
             std::fs::read_to_string(&config_path)
                 .ok()
                 .and_then(|s| serde_json::from_str(&s).ok())
@@ -187,6 +198,11 @@ impl RecorderConfigState {
         } else {
             RecorderConfig::default()
         };
+        // Normalize a blank output_dir to the default so we never write
+        // recordings into the current working directory.
+        if config.output_dir.trim().is_empty() {
+            config.output_dir = default_output_dir();
+        }
         Self {
             config: Mutex::new(config),
             config_path,
@@ -356,5 +372,27 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let state = RecorderConfigState::with_path(tmp.path().join("nope.json"));
         assert_eq!(state.get().unwrap().sample_rate, 48000);
+    }
+
+    #[test]
+    fn blank_output_dir_resolves_to_default_not_cwd() {
+        let mut c = RecorderConfig::default();
+        c.output_dir = String::new();
+        let out = c.resolved_output_dir();
+        assert!(out.contains("recordings"), "blank must fall back to default, got {out}");
+        assert!(out.starts_with('/'), "must be absolute, never relative to cwd: {out}");
+    }
+
+    #[test]
+    fn blank_output_dir_normalized_on_load() {
+        // A config file with an empty output_dir (the bug that dumped recordings
+        // into the cwd) must be normalized to the absolute default on load.
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("cfg.json");
+        std::fs::write(&path, r#"{"sample_rate":48000,"bit_depth":24,"output_dir":"","default_device":null}"#).unwrap();
+        let state = RecorderConfigState::with_path(path);
+        let c = state.get().unwrap();
+        assert!(!c.output_dir.trim().is_empty());
+        assert!(c.output_dir.contains("recordings"));
     }
 }

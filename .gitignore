@@ -2,3 +2,8 @@
 **/*.rs.bk
 *.pdb
 .DS_Store
+
+# never commit recordings
+*.wav
+session-*/
+recordings/

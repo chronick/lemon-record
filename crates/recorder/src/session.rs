@@ -175,7 +175,7 @@ impl SessionWriter {
         let recording = sanitize_stem(&naming.recording);
         let id = sanitize_stem(&naming.id);
         let folder = format!("{}-{}", recording, naming.datetime);
-        let dir = Path::new(&config.output_dir).join(&folder);
+        let dir = Path::new(&config.resolved_output_dir()).join(&folder);
         std::fs::create_dir_all(&dir).map_err(|e| format!("create session dir: {}", e))?;
 
         let layout = config.effective_tracks(device_channels);
